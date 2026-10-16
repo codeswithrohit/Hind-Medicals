@@ -26,6 +26,9 @@ const AiPoweredBusiness = () => {
   // ========== GLOBAL PRODUCTS ==========
   const [productsList, setProductsList] = useState([]);
   
+  // ========== NEW: GLOBAL SEARCH NAMES STATE ==========
+  const [allProductNames, setAllProductNames] = useState([]);
+  
   // ========== SEARCH & FILTER STATES ==========
   const [activeCatalogTab, setActiveCatalogTab] = useState('PRODUCTS');
   const [priceFilter, setPriceFilter] = useState('ALL');
@@ -38,6 +41,9 @@ const AiPoweredBusiness = () => {
   const [visibleCount, setVisibleCount] = useState(15);
   const [serviceSearchQuery, setServiceSearchQuery] = useState('');
   const [selectedServiceCategory, setSelectedServiceCategory] = useState('All');
+
+  // Added isSearching state mimicking reference code
+  const [isSearching, setIsSearching] = useState(false);
 
   // ========== CHAT STATE ==========
   const [chatInput, setChatInput] = useState('');
@@ -107,6 +113,26 @@ const AiPoweredBusiness = () => {
     return () => { cancelled = true; };
   }, []);
 
+  // ========== NEW: FETCH ALL PRODUCT NAMES FOR SEARCH ==========
+  useEffect(() => {
+    const fetchProductNames = async () => {
+      try {
+        const doc = await firebase.firestore()
+          .collection('searchproduct')
+          .doc('allProductNames')
+          .get();
+        
+        if (doc.exists) {
+          setAllProductNames(doc.data().names || []);
+        }
+      } catch (error) {
+        console.error('Error fetching product names:', error);
+      }
+    };
+
+    fetchProductNames();
+  }, []);
+
   // ========== REAL-TIME PRODUCTS (OPTIMIZED QUERY) ==========
   useEffect(() => {
     // OPTIMIZATION 1: Filter active products directly in the database to prevent downloading unused data
@@ -114,7 +140,7 @@ const AiPoweredBusiness = () => {
       .collection('Products')
       .where('Active', '==', 'True')
       .where('View', '==', 'True')
-      .limit(200); // OPTIMIZATION 2: Prevent memory crashes by capping the initial download limit
+      .limit(200); // Initial cap to prevent crashes. Hidden items fetched on-demand below.
 
     const unsubscribeProducts = queryRef.onSnapshot(
         (snapshot) => {
@@ -144,9 +170,13 @@ const AiPoweredBusiness = () => {
               imageUrl 
             };
           }); 
-          // Browser-side `.filter()` removed because the database handles it now
-
-          setProductsList(prods);
+          
+          setProductsList(prevList => {
+             // Merge with any products that were fetched dynamically via search
+             const newIds = new Set(prods.map(p => p.id));
+             const existingDynamic = prevList.filter(p => !newIds.has(p.id));
+             return [...prods, ...existingDynamic];
+          });
         },
         (error) => console.error('Products sync error: ', error)
       );
@@ -211,7 +241,7 @@ const AiPoweredBusiness = () => {
     }
   }, [loading, businessData, hasPosSystem, hasServicesPlan, hasQRPlan]);
 
-  const domain = typeof window !== 'undefined' ? window.location.origin : '';
+  const domain = 'https://www.techrakshak.in/';
   const joinLink = `${domain}/AiBusiness/login?ref=TRDNLVMY`;
 
   const cartTotalBeforeDiscount = cart.reduce(
@@ -296,12 +326,74 @@ const AiPoweredBusiness = () => {
   return list;
 }, [filteredProducts]);
 
-  // ========== SEARCH LOGIC ==========
+  // ========== SEARCH LOGIC AND DYNAMIC DATABASE FETCH ==========
+  const executeSearchFromDB = async (searchTerm) => {
+    if (!searchTerm || searchTerm.trim() === '') return;
+    setIsSearching(true);
+
+    try {
+      // FIX: Removed .where('Active', '==', 'True') to prevent Firebase Index Error!
+      // We will filter for 'Active' and 'View' locally right after fetching instead.
+      const productSnap = await firebase.firestore()
+        .collection('Products')
+        .where('name', '>=', searchTerm)
+        .where('name', '<=', searchTerm + '\uf8ff')
+        .limit(50) 
+        .get();
+
+      if (!productSnap.empty) {
+        const fetchedProducts = productSnap.docs.map(doc => {
+          const data = doc.data();
+          let mappedVariants = data.variants || [];
+          if (mappedVariants.length === 0 && data.priceDetails && data.priceDetails.length > 0) {
+            mappedVariants = data.priceDetails.map((pd, idx) => ({
+              name: pd.variantName || `Option ${idx + 1}`,
+              price: pd.price || 0,
+              offerPrice: pd.discountPrice || ''
+            }));
+          }
+          const category = data.categoryName || data.category || 'Other';
+          let imageUrl = data.imageUrl;
+          if (!imageUrl && data.priceDetails && data.priceDetails[0]?.images?.length > 0) {
+             imageUrl = data.priceDetails[0].images[0];
+          }
+          return { id: doc.id, ...data, variants: mappedVariants, category, imageUrl };
+        })
+        // Local Filter to replace the missing database query parameters
+        .filter(p => p.Active === 'True' && p.View === 'True');
+
+        // Add missing products to the global local list to make them available to filters
+        setProductsList(prev => {
+           const existingIds = new Set(prev.map(p => p.id));
+           const newProds = fetchedProducts.filter(p => !existingIds.has(p.id));
+           return [...prev, ...newProds];
+        });
+      }
+    } catch (error) {
+      console.error('Search error from DB:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSearchSubmit = async (e) => {
+    if (e) e.preventDefault();
+    if (localSearchTerm.trim() === '') return;
+    
+    setSearchQuery(localSearchTerm);
+    setSearchSuggestions([]);
+    // Run real DB search logic
+    await executeSearchFromDB(localSearchTerm);
+  };
+
   const handleSearchChange = (e) => {
     const val = e.target.value;
     setLocalSearchTerm(val);
     if (val.trim().length > 0) {
-      const matches = allProducts.filter(p => p.name.toLowerCase().includes(val.toLowerCase())).slice(0, 6);
+      // Filter from ALL product names fetched directly from DB reference
+      const matches = allProductNames
+        .filter(name => typeof name === 'string' && name.toLowerCase().includes(val.toLowerCase()))
+        .slice(0, 15); // Show up to 15 suggestions
       setSearchSuggestions(matches);
     } else {
       setSearchSuggestions([]);
@@ -309,10 +401,12 @@ const AiPoweredBusiness = () => {
     }
   };
 
-  const selectSuggestion = (product) => {
-    setLocalSearchTerm(product.name);
-    setSearchQuery(product.name);
+  const selectSuggestion = async (suggestionName) => {
+    setLocalSearchTerm(suggestionName);
+    setSearchQuery(suggestionName);
     setSearchSuggestions([]);
+    // Run real DB logic based on string name
+    await executeSearchFromDB(suggestionName);
   };
 
   const clearLocalSearch = () => {
@@ -728,6 +822,9 @@ const AiPoweredBusiness = () => {
       setCategoryFilter('All');
       setSearchQuery(extractedProduct);
       setLocalSearchTerm(extractedProduct);
+
+      // Trigger DB search from bot to fetch products not loaded
+      await executeSearchFromDB(extractedProduct);
  
       botSay(
         `🔍 Showing results for ${extractedProduct ? `"${extractedProduct}"` : 'products'}${
@@ -1461,13 +1558,8 @@ const AiPoweredBusiness = () => {
           <div className="mt-auto flex items-center justify-between gap-1.5">
           <div className="flex flex-col">
   <span className="text-[13px] font-bold text-emerald-600 leading-none">
-    ₹{Number(variant.offerPrice || variant.price).toFixed(2)}
+  ₹{Number(variant.price).toFixed(2)}
   </span>
-  {variant.offerPrice && Number(variant.price) > Number(variant.offerPrice) && (
-    <span className="text-[10px] text-red-400 line-through font-bold mt-0.5">
-      ₹{Number(variant.price).toFixed(2)}
-    </span>
-  )}
 </div>
 <div className="shrink-0">
   {inCartItem ? (
@@ -1801,13 +1893,7 @@ const AiPoweredBusiness = () => {
 
                     <span className="text-slate-300 font-bold mx-0.5">|</span>
 
-                    <a 
-                      href="tel:+917667411501" 
-                      className="flex items-center gap-1 text-[10px] font-black text-slate-700 hover:text-indigo-600 uppercase tracking-wide group/phone"
-                    >
-                      <FiPhone size={10} className="mb-[1px] group-hover/phone:animate-bounce" />
-                      +91 7667411501
-                    </a>
+                    
                   </div>
                 </div>
               </div>
@@ -1816,7 +1902,16 @@ const AiPoweredBusiness = () => {
             {/* Catalog */}
             {((hasPosSystem && allProducts.length > 0) ||
               (hasServicesPlan && allServices.length > 0)) && (
-              <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+              <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 relative">
+                
+                {/* Searching Overlay integrated */}
+                {isSearching && (
+                  <div className="absolute inset-0 z-50 bg-white/80 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-xl">
+                    <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="mt-3 text-[13px] font-bold text-indigo-800 tracking-wide">Finding Product...</p>
+                  </div>
+                )}
+
                 {hasPosSystem &&
                   allProducts.length > 0 &&
                   hasServicesPlan &&
@@ -1848,9 +1943,12 @@ const AiPoweredBusiness = () => {
                 {/* PRODUCTS – only if POS plan */}
                 {activeCatalogTab === 'PRODUCTS' && hasPosSystem && (
   <>
-    {/* Search Bar */}
+    {/* Search Bar - Changed to Form to trigger DB fetch */}
     <div className="relative mb-3 z-20">
-      <div className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 transition-all">
+      <form 
+        onSubmit={handleSearchSubmit}
+        className="flex items-center bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-sm focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 transition-all w-full"
+      >
         <FiSearch className="text-slate-400 mr-2.5 shrink-0" size={16} />
         <input
           type="text"
@@ -1858,36 +1956,36 @@ const AiPoweredBusiness = () => {
           className="w-full text-sm outline-none text-slate-800 placeholder-slate-400 bg-transparent"
           value={localSearchTerm}
           onChange={handleSearchChange}
+          disabled={isSearching}
         />
         {localSearchTerm && (
           <button
+            type="button"
             onClick={clearLocalSearch}
             className="shrink-0 p-1 bg-slate-100 rounded-full hover:bg-slate-200 ml-1.5"
+            disabled={isSearching}
           >
             <FiX className="text-slate-500" size={14} />
           </button>
         )}
-      </div>
+      </form>
 
-      {searchSuggestions.length > 0 && (
+      {/* MODIFIED: Renders string name suggestions with an icon */}
+      {searchSuggestions.length > 0 && !isSearching && (
         <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden z-50">
-          {searchSuggestions.map((s) => (
+          {searchSuggestions.map((suggestionName, index) => (
             <div
-              key={s.id}
-              onClick={() => selectSuggestion(s)}
-              className="px-3.5 py-2.5 border-b border-slate-100 last:border-0 hover:bg-indigo-50 cursor-pointer flex items-center gap-3"
+              key={index}
+              onClick={() => selectSuggestion(suggestionName)}
+              className="px-3.5 py-3 border-b border-slate-100 last:border-0 hover:bg-indigo-50 cursor-pointer flex items-center gap-3"
             >
-              <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0 overflow-hidden flex items-center justify-center">
-                {s.imageUrl ? (
-                  <img src={s.imageUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <FiBox className="text-slate-400" size={16} />
-                )}
+              <div className="w-8 h-8 rounded-lg bg-slate-100 shrink-0 overflow-hidden flex items-center justify-center">
+                <FiSearch className="text-slate-400" size={14} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-800 truncate">{s.name}</p>
-                <p className="text-[11px] text-slate-500 uppercase tracking-wide">{s.category}</p>
+                <p className="text-sm font-semibold text-slate-800 truncate">{suggestionName}</p>
               </div>
+              <FiNavigation className="text-slate-300 transform rotate-45" size={14} />
             </div>
           ))}
         </div>
@@ -1970,7 +2068,7 @@ const AiPoweredBusiness = () => {
         {displayProducts.map((p) => renderProductCard(p, false))}
       </div>
 
-      {displayProducts.length === 0 && (
+      {displayProducts.length === 0 && !isSearching && (
         <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
           <p className="text-sm font-medium mb-2">No products match your search</p>
           <button
