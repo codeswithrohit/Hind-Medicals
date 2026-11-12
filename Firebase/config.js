@@ -5,13 +5,13 @@ import "firebase/compat/storage";
 
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBVaJxBDV1OO4MBQV5OhQaCtEPUh13PP68",
-  authDomain: "lifelineshop12.firebaseapp.com",
-  projectId: "lifelineshop12",
-  storageBucket: "lifelineshop12.firebasestorage.app",
-  messagingSenderId: "612027750388",
-  appId: "1:612027750388:web:abc4ab983ef33c2f02cba1",
-  measurementId: "G-3QV9BFEVC7"
+  apiKey: "AIzaSyAmh-vSdWHeN0m7XQCmkEbcaadvVUhEOYs",
+  authDomain: "itechrakshak.firebaseapp.com",
+  projectId: "itechrakshak",
+  storageBucket: "itechrakshak.firebasestorage.app",
+  messagingSenderId: "824187330364",
+  appId: "1:824187330364:web:58e275ec737aa021b04839",
+  measurementId: "G-6VCNM1R64K"
 };
 
 // Initialize Firebase

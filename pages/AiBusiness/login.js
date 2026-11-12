@@ -4,6 +4,7 @@ import { firebase } from '../../Firebase/config';
 
 const Login = () => {
   const router = useRouter();
+  const CUSTOMER_ID = 'TROBINNQ'; // Hardcoded unique customer ID for validation
 
   // Steps: 1 = Phone Number, 2 = OTP
   const [step, setStep] = useState(1);
@@ -24,15 +25,6 @@ const Login = () => {
     }
   }, []);
 
-  // ========== UNIQUE CUSTOMER ID GENERATOR ==========
-  const generateCustomerId = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = 'TR';
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  };
 
   // ========== FIREBASE OTP LOGIC ==========
   const handleSendOtp = async (e) => {
@@ -60,36 +52,35 @@ const Login = () => {
       const result = await confirmationResult.confirm(otp);
       const user = result.user;
       
-      const usersRef = firebase.firestore().collection('HareKrishnaPharmacyAdmin');
+      const usersRef = firebase.firestore().collection('BusinessUsers');
       const doc = await usersRef.doc(user.uid).get();
       
       if (!doc.exists) {
-        // NEW USER: Create document with FALSE for isActive and isVerified
-        let customerId = generateCustomerId();
-        
-        const finalData = {
-          uid: user.uid,
-          customerId: customerId,
-          verifiedMobile: user.phoneNumber,
-          isActive: false,    // Submitted as false
-          isVerified: false,  // Submitted as false
-          role: ''
-        };
-
-        await usersRef.doc(user.uid).set(finalData);
-        
-        // Block access since they are false
+        // NEW USER LOGIN ATTEMPT
+        // We only allow login, not account creation. 
+        // If the document doesn't exist, they are not a registered business user.
         await firebase.auth().signOut();
         setStep(1);
         setOtp('');
-        setError('You do not have access. Your account is pending verification.');
+        setError('Account not found. Please contact administration for access.');
         setLoading(false);
         return;
 
       } else {
-        // EXISTING USER: Check if isActive and isVerified are BOTH TRUE
+        // EXISTING USER
         const data = doc.data();
         
+        // 1. Check if customerId matches the hardcoded TROBINNQ
+        if (data.customerId !== CUSTOMER_ID) {
+           await firebase.auth().signOut();
+           setStep(1);
+           setOtp('');
+           setError('Unauthorized access. Invalid customer ID.');
+           setLoading(false);
+           return;
+        }
+
+        // 2. Check if isActive and isVerified are BOTH TRUE
         if (data.isActive === true && data.isVerified === true) {
           // Success! Navigate to dashboard
           router.push('/AiBusiness');

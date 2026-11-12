@@ -27,7 +27,7 @@ const Index = () => {
       setLoading(false);
     }
   };
-
+  console.log(`Data count: ${duplicates.length}`);
   const findDuplicates = (products) => {
     const nameCount = {};
     const duplicatesMap = {};
