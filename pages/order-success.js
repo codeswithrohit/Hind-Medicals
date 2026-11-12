@@ -11,7 +11,7 @@ export default function OrderSuccess() {
   useEffect(() => {
     if (orderId) {
       // Optionally fetch order details from Firebase
-      // firebase.firestore().collection('HareKrishnaPharmacyOrders').doc(orderId).get()...
+      // firebase.firestore().collection('hindmedicalsOrders').doc(orderId).get()...
     }
   }, [orderId]);
 

@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     // TODO: Update your Firebase order status here
     // const orderId = paytmParams.ORDERID;
     // const status = paytmParams.STATUS; // TXN_SUCCESS / TXN_FAILURE
-    // await firebase.firestore().collection('HareKrishnaPharmacyOrders').doc(orderId).update({...})
+    // await firebase.firestore().collection('hindmedicalsOrders').doc(orderId).update({...})
 
     // Redirect user back to your success/failure page
     const redirectUrl =

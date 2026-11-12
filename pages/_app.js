@@ -50,9 +50,9 @@ export default function App({ Component, pageProps }) {
 
   const siteAuthor = businessData?.ownerName || "Tech Rakshak";
   
-  const siteUrl = businessData?.websiteUrl || "https://www.harekrishnapharmacy.in/";
+  const siteUrl = businessData?.websiteUrl || "https://www.hindmedicals.in/";
   
-  const siteLogo = businessData?.logoUrl || "https://www.harekrishnapharmacy.in/logo.png";
+  const siteLogo = businessData?.logoUrl || "https://www.hindmedicals.in/logo.png";
   const favIcon = businessData?.logoUrl || "/logo.png";
 
   return (
