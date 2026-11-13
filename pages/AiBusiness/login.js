@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { firebase } from '../../Firebase/config';
 
-const Login = () => {
+const Login = ({ businessData }) => {
   const router = useRouter();
   const CUSTOMER_ID = 'TROBINNQ'; // Hardcoded unique customer ID for validation
 
@@ -24,7 +24,6 @@ const Login = () => {
       });
     }
   }, []);
-
 
   // ========== FIREBASE OTP LOGIC ==========
   const handleSendOtp = async (e) => {
@@ -57,15 +56,12 @@ const Login = () => {
       
       if (!doc.exists) {
         // NEW USER LOGIN ATTEMPT
-        // We only allow login, not account creation. 
-        // If the document doesn't exist, they are not a registered business user.
         await firebase.auth().signOut();
         setStep(1);
         setOtp('');
         setError('Account not found. Please contact administration for access.');
         setLoading(false);
         return;
-
       } else {
         // EXISTING USER
         const data = doc.data();
@@ -105,33 +101,39 @@ const Login = () => {
       {/* Invisible Recaptcha Container */}
       <div id="recaptcha-container" />
 
-      {/* LEFT PANEL - Branding (Hidden on very small screens, visible on md and up) */}
-      <div className="hidden md:flex md:w-1/2 lg:w-5/12 bg-gradient-to-br from-red-600 to-red-900 text-white flex-col justify-between p-12 relative overflow-hidden shadow-2xl z-10">
+      {/* LEFT PANEL - Branding (Dark Blue & White Theme) */}
+      <div className="hidden md:flex md:w-1/2 lg:w-5/12 bg-gradient-to-br from-blue-800 to-blue-950 text-white flex-col justify-between p-12 relative overflow-hidden shadow-2xl z-10">
         {/* Background Design Elements */}
         <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-white opacity-5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-yellow-400 opacity-20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-blue-400 opacity-20 rounded-full blur-3xl"></div>
 
         <div className="relative z-10">
           <div className="flex items-center gap-4 mb-10">
-            <div className="bg-white p-2 rounded-xl shadow-lg border-b-4 border-yellow-400">
-              <img src="/logo.png" alt="Logo" className="w-12 h-12 object-contain" />
+            <div className="bg-white p-2 rounded-xl shadow-lg border-b-4 border-blue-400">
+              <img 
+                src={businessData?.logoUrl || "/logo.png"} 
+                alt={`${businessData?.businessName || 'Business'} Logo`} 
+                className="w-12 h-12 object-contain" 
+              />
             </div>
-            <h1 className="text-2xl font-black tracking-wider">HARE KRISHNA<br/><span className="text-yellow-400 text-sm tracking-widest font-bold uppercase">Pharmacy</span></h1>
+            <h1 className="text-2xl font-black tracking-wider uppercase leading-tight">
+              {businessData?.businessName || 'Admin Panel'}
+            </h1>
           </div>
           
           <div className="mt-20">
             <h2 className="text-4xl font-bold leading-tight mb-6">
               Secure Access <br /> 
-              <span className="text-yellow-200 text-3xl font-light">to your Admin Panel</span>
+              <span className="text-blue-200 text-3xl font-light">to your Admin Panel</span>
             </h2>
-            <p className="text-red-100 text-lg max-w-md leading-relaxed">
+            <p className="text-blue-100 text-lg max-w-md leading-relaxed">
               Log in with your authorized mobile number to manage products, view orders, and handle daily operations efficiently. Only verified administrators can access the dashboard.
             </p>
           </div>
         </div>
 
-        <div className="relative z-10 text-sm text-red-200/80 font-medium">
-          &copy; {new Date().getFullYear()} Hare Krishna Pharmacy. All rights reserved.
+        <div className="relative z-10 text-sm text-blue-200/80 font-medium">
+          &copy; {new Date().getFullYear()} {businessData?.businessName || 'Admin Panel'}. All rights reserved.
         </div>
       </div>
 
@@ -141,11 +143,22 @@ const Login = () => {
           
           {/* Mobile Only Header */}
           <div className="md:hidden flex flex-col items-center justify-center mb-8 text-center">
-            <div className="bg-red-50 border border-red-100 p-3 rounded-2xl mb-4 shadow-sm">
-              <img src="/logo.png" alt="Logo" className="w-12 h-12 object-contain" />
+            <div className="bg-blue-50 border border-blue-100 p-3 rounded-2xl mb-4 shadow-sm">
+              <img 
+                src={businessData?.logoUrl || "/logo.png"} 
+                alt={`${businessData?.businessName || 'Business'} Logo`} 
+                className="w-12 h-12 object-contain" 
+              />
             </div>
-            <h1 className="text-xl font-black text-red-700 uppercase tracking-wide">Hare Krishna</h1>
-            <p className="text-xs font-bold text-yellow-600 uppercase tracking-widest mt-1">Pharmacy</p>
+            <h1 className="text-xl font-black text-blue-900 uppercase tracking-wide">
+              {businessData?.businessName || 'Admin Panel'}
+            </h1>
+            {/* Dynamically show the category if available, otherwise hide it */}
+            {businessData?.businessCategory && (
+              <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mt-1">
+                {businessData.businessCategory}
+              </p>
+            )}
           </div>
 
           <div className="mb-8">
@@ -160,6 +173,7 @@ const Login = () => {
             </p>
           </div>
 
+          {/* Error Message (Kept Red for semantic alerts) */}
           {error && (
             <div className="mb-6 flex items-start gap-3 bg-red-50 text-red-700 px-4 py-3 rounded-xl text-sm border border-red-200 shadow-sm">
               <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,8 +188,8 @@ const Login = () => {
             <form onSubmit={handleSendOtp} className="space-y-6">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Mobile Number</label>
-                <div className="flex bg-gray-50 rounded-xl border border-gray-200 focus-within:border-red-500 focus-within:ring-4 focus-within:ring-red-500/20 transition-all overflow-hidden shadow-sm">
-                  <div className="flex items-center justify-center px-4 bg-gray-100 border-r border-gray-200 text-red-700 font-black text-sm">
+                <div className="flex bg-gray-50 rounded-xl border border-gray-200 focus-within:border-blue-600 focus-within:ring-4 focus-within:ring-blue-600/20 transition-all overflow-hidden shadow-sm">
+                  <div className="flex items-center justify-center px-4 bg-gray-100 border-r border-gray-200 text-blue-800 font-black text-sm">
                     +91
                   </div>
                   <input 
@@ -193,7 +207,7 @@ const Login = () => {
               <button 
                 type="submit" 
                 disabled={loading || phoneNumber.length !== 10} 
-                className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-base transition-all duration-200 shadow-lg shadow-red-600/30 active:scale-[0.98] flex justify-center items-center gap-2"
+                className="w-full bg-blue-700 hover:bg-blue-800 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-base transition-all duration-200 shadow-lg shadow-blue-700/30 active:scale-[0.98] flex justify-center items-center gap-2"
               >
                 {loading ? (
                   <span className="animate-pulse">Sending Code...</span>
@@ -213,7 +227,7 @@ const Login = () => {
                   <button 
                     type="button" 
                     onClick={() => setStep(1)} 
-                    className="text-xs font-bold text-yellow-600 hover:text-yellow-700 transition-colors"
+                    className="text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors"
                   >
                     Edit Number
                   </button>
@@ -223,7 +237,7 @@ const Login = () => {
                   value={otp} 
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} 
                   placeholder="• • • • • •" 
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-4 text-center text-2xl tracking-[0.5em] font-mono text-gray-900 font-bold focus:bg-white focus:outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/20 transition-all shadow-sm"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-4 text-center text-2xl tracking-[0.5em] font-mono text-gray-900 font-bold focus:bg-white focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/20 transition-all shadow-sm"
                   required 
                   autoFocus
                 />
@@ -232,7 +246,7 @@ const Login = () => {
               <button 
                 type="submit" 
                 disabled={loading || otp.length !== 6} 
-                className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:bg-yellow-200 disabled:text-gray-400 disabled:cursor-not-allowed text-gray-900 font-black py-3.5 rounded-xl text-base transition-all duration-200 shadow-lg shadow-yellow-500/30 active:scale-[0.98]"
+                className="w-full bg-blue-700 hover:bg-blue-800 disabled:bg-blue-200 disabled:text-blue-400 disabled:cursor-not-allowed text-white font-black py-3.5 rounded-xl text-base transition-all duration-200 shadow-lg shadow-blue-700/30 active:scale-[0.98]"
               >
                 {loading ? 'Verifying...' : 'Verify & Secure Login'}
               </button>
@@ -241,8 +255,8 @@ const Login = () => {
 
           {/* Step Indicator (Dots) */}
           <div className="flex justify-center gap-2 mt-8">
-            <div className={`h-2 rounded-full transition-all duration-300 ${step === 1 ? 'w-8 bg-red-600' : 'w-2 bg-gray-200'}`}></div>
-            <div className={`h-2 rounded-full transition-all duration-300 ${step === 2 ? 'w-8 bg-red-600' : 'w-2 bg-gray-200'}`}></div>
+            <div className={`h-2 rounded-full transition-all duration-300 ${step === 1 ? 'w-8 bg-blue-700' : 'w-2 bg-gray-200'}`}></div>
+            <div className={`h-2 rounded-full transition-all duration-300 ${step === 2 ? 'w-8 bg-blue-700' : 'w-2 bg-gray-200'}`}></div>
           </div>
 
         </div>

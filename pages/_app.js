@@ -38,7 +38,7 @@ export default function App({ Component, pageProps }) {
   // ==========================================
   const siteTitle = businessData?.businessName 
     ? `${businessData.businessName} | ${businessData.businessCategory || 'Healthcare'} in ${businessData.businessAddress || 'India'}`
-    : "Tech Rakshak - Genuine Medicines & Healthcare in Varanasi";
+    : "Hind Medicals - Genuine Medicines & Healthcare in Varanasi";
 
   const siteDescription = businessData?.businessName 
     ? `Visit ${businessData.businessName}, your trusted ${businessData.businessCategory?.toLowerCase() || 'store'} located at ${businessData.fullOfficeAddress}, ${businessData.state}.`
@@ -46,9 +46,9 @@ export default function App({ Component, pageProps }) {
 
   const siteKeywords = businessData?.keywords?.length > 0
     ? businessData.keywords.join(", ")
-    : "Pharmacy, Medical Store, Medicines, Varanasi, Gilat Bazar, Medicine Delivery, Healthcare, Surgical items, Ayurvedic medicines, Tech Rakshak";
+    : "Pharmacy, Medical Store, Medicines, Varanasi, Gilat Bazar, Medicine Delivery, Healthcare, Surgical items, Ayurvedic medicines, Hind Medicals";
 
-  const siteAuthor = businessData?.ownerName || "Tech Rakshak";
+  const siteAuthor = businessData?.ownerName || "Hind Medicals";
   
   const siteUrl = businessData?.websiteUrl || "https://www.hindmedicals.in/";
   
@@ -76,11 +76,11 @@ export default function App({ Component, pageProps }) {
         {/* ========== OPEN GRAPH / FACEBOOK / WHATSAPP ========== */}
         <meta property="og:type" content="website" />
         <meta property="og:url" content={siteUrl} />
-        <meta property="og:site_name" content={businessData?.businessName || "Tech Rakshak"} />
+        <meta property="og:site_name" content={businessData?.businessName || "Hind Medicals"} />
         <meta property="og:title" content={siteTitle} />
         <meta property="og:description" content={siteDescription} />
         <meta property="og:image" content={siteLogo} />
-        <meta property="og:image:alt" content={`${businessData?.businessName || "Tech Rakshak"} Logo`} />
+        <meta property="og:image:alt" content={`${businessData?.businessName || "Hind Medicals"} Logo`} />
         <meta property="og:locale" content="en_IN" />
 
         {/* ========== TWITTER CARDS ========== */}
@@ -94,7 +94,7 @@ export default function App({ Component, pageProps }) {
         <link rel="icon" href={favIcon} />
         <link rel="apple-touch-icon" href={favIcon} />
         <link rel="canonical" href={siteUrl} />
-        <meta name="theme-color" content="#B91C1C" /> 
+        {/* <meta name="theme-color" content="#B91C1C" />  */}
       </Head>
       
       {/* Passing the fetched data to all pages */}
